@@ -1,17 +1,9 @@
-%___________________________________________________________________%
-%                                                                   %
-%                                                                   %
-%  Developed in MATLAB R2018b                                       %
-%                                                                   %
-%  Author and programmer: Seyedali Mirjalili                        %
-%                                                                   %
-%         e-Mail: ali.mirjalili@gmail.com                           %
-%                 seyedali.mirjalili@griffithuni.edu.au             %
+
 
 
 function Positions=initialization(SearchAgents_no,dim,ub,lb)
 
-Boundary_no= size(ub,2); % numnber of boundaries
+Boundary_no= size(ub,2); 
 
 if Boundary_no==1
     Positions=rand(SearchAgents_no,dim).*(ub-lb)+lb;
