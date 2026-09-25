@@ -1,0 +1,84 @@
+function [BestScore, BestPos, Convergence_curve] = ShBO(N, MaxIt, lb, ub, dim, fobj, varargin)
+
+    sunrise_hour = 6;
+    sunset_hour = 18;
+    shadowLengthFactor = 8;
+
+    population = lb + (ub - lb) .* rand(N, dim);
+    fitness = zeros(N, 1);
+
+    for i = 1:N
+        fitness(i) = feval(fobj, population(i,:)', varargin{:});
+    end
+
+    [BestScore, bestIndex] = min(fitness);
+    BestPos = population(bestIndex, :);
+
+    Convergence_curve = zeros(1, MaxIt);
+
+    for iter = 1:MaxIt
+
+        t = iter / MaxIt;
+
+        % --- Solar geometry (heuristic) ---
+        day_of_year = 1 + 364 * t;
+        latitude = 35;
+        local_hour = sunrise_hour + t * (sunset_hour - sunrise_hour);
+
+        decl = 23.45 * sind((360 / 365) * (284 + day_of_year));
+        HRA = 15 * (local_hour - 12);
+
+        theta = asind(sind(latitude) * sind(decl) + ...
+                      cosd(latitude) * cosd(decl) * cosd(HRA));
+
+        theta = min(max(theta, 0.1), 89.9); 
+        theta_rad = deg2rad(theta);
+
+        % --- Step shrink ---
+        h = max(0.01, (1 - t)^2);
+
+        % --- Shadow length ---
+        shadow_length = h .* (1 ./ tan(theta_rad)) * shadowLengthFactor;
+
+        for i = 1:N
+
+            Xi = population(i, :);
+            peer = population(randi(N), :);
+
+            if t < 0.5
+                % --- Exploration ---
+                L = cos(theta_rad) + 0.1;
+                shadowVector = L * randn(1, dim);
+                newSolution = Xi + shadow_length * shadowVector;
+
+            else
+                % --- Exploitation ---
+                direction = 0.5 * (BestPos - Xi) + ...
+                            0.3 * (peer - Xi) + ...
+                            0.2 * randn(1, dim);
+
+                step = shadow_length .* sin(theta_rad);
+                randComponent = (1 - t) * 0.05 * randn(1, dim);
+
+                newSolution = Xi + step .* direction + randComponent;
+            end
+
+            % --- Bound control ---
+            newSolution = max(lb, min(ub, newSolution));
+
+            newFitness = feval(fobj, newSolution', varargin{:});
+
+            if newFitness < fitness(i)
+                population(i, :) = newSolution;
+                fitness(i) = newFitness;
+
+                if newFitness < BestScore
+                    BestScore = newFitness;
+                    BestPos = newSolution;
+                end
+            end
+        end
+
+        Convergence_curve(iter) = BestScore;
+    end
+end
